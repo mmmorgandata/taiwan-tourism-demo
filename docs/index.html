@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Taiwan Tourism Intelligence — Concept demo</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<script src="vendor/leaflet.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#09121b;--panel:#101e2b;--panel2:#132434;--line:#263746;--muted:#99adba;--text:#edf4f6;--green:#8ee4cc;--amber:#e9c980;--blue:#8fc3ff;--purple:#b5b4ff;--red:#f2a0a0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
+button{font:inherit;color:inherit;border:1px solid var(--line);background:#172838;border-radius:8px;padding:7px 12px;cursor:pointer}
+button:hover,button.active{background:#29463f;border-color:var(--green)}
+button:focus-visible,a:focus-visible{outline:3px solid var(--green);outline-offset:1px}
+a{color:var(--green)}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--line);gap:16px}
+.brand{font-size:18px;font-weight:700;white-space:nowrap}.brand span{color:var(--green)}
+nav{display:flex;gap:6px;flex-wrap:wrap}
+.meta{display:flex;gap:6px;align-items:center}
+.pill{display:inline-block;font-size:11px;letter-spacing:.04em;border:1px solid #6b6045;border-radius:20px;padding:3px 9px;color:var(--amber);white-space:nowrap}
+.intro{padding:16px 24px 10px;display:flex;justify-content:space-between;align-items:end;gap:16px}
+h1{font-size:26px;margin:2px 0 4px;font-weight:600}
+p{color:var(--muted);margin:4px 0}
+.eyebrow{color:var(--green);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+h2{font-size:15px;margin:0 0 12px}h3{font-size:13px;margin:0 0 6px}
+.mini{font-size:11px;color:var(--muted)}
+.hidden{display:none!important}
+.wrap{margin:0 24px 18px}
+/* provenance chips */
+.prov{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;letter-spacing:.03em;border-radius:20px;padding:2px 8px;border:1px solid;white-space:nowrap;vertical-align:middle}
+.prov:before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor}
+.prov.obs{color:var(--green);border-color:#3f6d61}
+.prov.est{color:var(--amber);border-color:#6b6045}
+.prov.fc{color:var(--blue);border-color:#3e5c7c}
+.prov.ill{color:var(--purple);border-color:#55547d;border-style:dashed}
+.prov.nc{color:var(--muted);border-color:var(--line)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:9px 14px;margin:0 24px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+.legend span.txt{font-size:11px;color:var(--muted)}
+/* map view */
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 24px 12px}
+.toolbar .lab{font-size:12px;color:var(--muted);margin-right:2px}
+.layout{display:grid;grid-template-columns:230px minmax(340px,1fr) 300px;gap:12px;margin:0 24px}
+.layers label{display:flex;gap:9px;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer;align-items:flex-start}
+.layers input{accent-color:var(--green);margin-top:3px}
+.layers small{display:block;font-size:11px;color:var(--muted);margin-top:3px}
+.map{position:relative;padding:0;overflow:hidden;background:#0c1b29;min-height:480px}
+#lmapHost,#lmap{position:absolute;inset:0}
+#lmap{background:#0c1b29;font:inherit}
+.map-label{position:absolute;top:10px;left:56px;z-index:500;color:#cfe0e6;font-size:11px;background:#09121bcc;padding:4px 8px;border-radius:6px;pointer-events:none}
+.basemaps{position:absolute;top:10px;right:10px;z-index:500;display:flex;gap:4px}
+.basemaps button{padding:4px 9px;font-size:11.5px;background:#09121be6}
+.map-foot{position:absolute;bottom:8px;left:10px;z-index:500;color:#cfe0e6;font-size:10.5px;background:#09121bcc;padding:3px 8px;border-radius:6px;pointer-events:none;max-width:60%}
+.map-fallback{padding:40px;color:var(--muted)}
+.leaflet-tooltip.lbl{background:#09121bdd;border:1px solid #31475a;color:#e6f0ef;font-size:12px;padding:2px 7px;border-radius:6px;box-shadow:none}
+.leaflet-tooltip.lbl:before{display:none}
+.leaflet-tooltip.lbl.sel{border-color:var(--green);color:var(--green);font-weight:700;z-index:1000}
+.mk{margin-left:6px;font-size:10.5px;font-weight:600}.mk.poi{color:var(--amber)}.mk.stay{color:var(--purple)}
+.leaflet-container a{color:#2a7d6a}.leaflet-control-attribution{font-size:10px}
+.leaflet-bar a{background:#172838;color:#edf4f6;border-color:#263746}.leaflet-bar a:hover{background:#29463f}
+.tiles-streets{filter:brightness(.8) saturate(.8)}
+select{font:inherit;color:inherit;background:#172838;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.pt{cursor:pointer}
+.pt text{font-size:12px;fill:#dfe9ec;paint-order:stroke;stroke:#0b1a26;stroke-width:4px}
+.pt.sel text{fill:var(--green);font-weight:700}
+.pt:focus{outline:none}.pt:focus-visible circle.core{stroke:#fff;stroke-width:3}
+.statrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
+.statrow .k{display:flex;flex-direction:column;gap:3px}
+.statrow b{color:var(--text);font-size:15px;white-space:nowrap}
+.statrow small{font-size:10.5px;color:var(--muted)}
+.flow{margin-top:12px;padding:12px;background:#1a2f2a;border-radius:10px}
+.flow ol{margin:6px 0 0;padding-left:18px;color:#b9cfc7;font-size:12px}
+.flow li{margin:3px 0}
+/* timeline */
+.timeline{margin:12px 24px 18px;padding:10px 14px 8px}
+.tl-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:26px}
+.tl-head h2{margin:0;font-size:13px}
+.tl-head .val{font-size:12px;color:var(--muted)}
+.tl-head .sp{flex:1}
+.timeline svg{display:block;width:100%;height:170px;margin-top:4px}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:2px}
+.days button{padding:3px 0;font-size:11px;background:transparent;border-color:transparent;color:var(--muted)}
+.days button.active{color:var(--green);border-color:#3f6d61;background:#16302a}
+/* markets */
+.direction{display:flex;gap:8px;margin:0 0 12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.big{font-size:28px;font-weight:600;color:var(--text);margin:8px 0 4px}
+.delta{font-size:13px;color:var(--green)}
+.card-foot{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.notice{padding:10px 14px;background:#292a22;border-left:3px solid #d6bc7b;color:#e1d8b9;font-size:12px;margin:12px 0}
+.ok{padding:10px 14px;background:#16302a;border-left:3px solid var(--green);color:#cfe9df;font-size:12px;margin:12px 0}
+ul.src{margin:6px 0 0;padding-left:18px;font-size:12px;color:var(--muted)}
+ul.src li{margin:3px 0}
+/* data table */
+.counts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.count{cursor:pointer;text-align:left;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.count b{display:block;font-size:24px;margin-top:2px}
+.count.active{border-color:var(--green);background:#16302a}
+.st{display:inline-block;font-size:11px;border-radius:6px;padding:2px 7px;white-space:nowrap;font-weight:600}
+.st.now{background:#1d4a3f;color:var(--green)}
+.st.verify{background:#4a3f1d;color:var(--amber)}
+.st.later{background:#24364a;color:var(--blue)}
+.st.notnow{background:#3a2328;color:var(--red)}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+td,th{text-align:left;padding:10px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:11.5px;position:sticky;top:0;background:var(--panel)}
+td .g{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.tablewrap{overflow:auto;max-height:none}
+.log{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.log ul{margin:6px 0 0;padding-left:18px;font-size:12px;color:var(--muted)}
+.log li{margin:4px 0}
+.footer{margin:6px 24px 22px;font-size:11.5px;color:var(--muted)}
+.help{margin:0 24px 12px;font-size:13px;color:var(--muted)}
+@media(max-width:1100px){.layout{grid-template-columns:200px 1fr}.detail{grid-column:1/-1}.grid3,.log{grid-template-columns:1fr}.counts{grid-template-columns:repeat(2,1fr)}header{flex-wrap:wrap}}
+@media(max-width:680px){header,.intro{padding:12px 14px}.layout,.toolbar,.legend,.wrap,.timeline,.help,.footer{margin-left:12px;margin-right:12px}.layout{grid-template-columns:1fr}.layers{display:flex;flex-wrap:wrap;gap:4px 12px}.layers h2{width:100%;margin:0}.layers label{padding:4px 0;border:0}.layers small{display:none}.intro{flex-direction:column;align-items:start}h1{font-size:22px}.map{min-height:440px}.map-label,.map-foot{display:none}.basemaps button{padding:3px 7px;font-size:11px}.timeline svg{height:140px}.days button{font-size:10px}table{display:block;overflow:auto}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span>◈</span> <span data-i="brand"></span></div>
+  <nav id="nav" aria-label="Views"></nav>
+  <div class="meta"><span class="pill" data-i="demo"></span><button id="en">EN</button><button id="ja">日本語</button></div>
+</header>
+<section class="intro">
+  <div><div class="eyebrow" data-i="eyebrow"></div><h1 id="heading"></h1><p id="subheading"></p></div>
+  <button id="guide" data-i="guide"></button>
+</section>
+<div id="help" class="help panel hidden"></div>
+<div class="legend" id="legend"></div>
+<main id="main"></main>
+<footer class="footer" data-i="footer"></footer>
+<script>
+const S={en:{
+brand:'Taiwan Tourism Intelligence',demo:'CONCEPT DEMO',eyebrow:'Taiwan × Japan / Destination intelligence',
+map:'Map',markets:'Taiwan ↔ Japan',data:'Data readiness',summary:'Summary',
+mapTitle:'Where should we act next?',mapSub:'Taipei pilot first: tourist hubs, weather exposure and access. Every number is tagged by what kind of evidence it is.',
+guide:'How to use',help:'1. Pick a scope (Taipei pilot or All Taiwan). 2. Select a place on the map. 3. Toggle layers — each shows its source and connection status. 4. Click a day on the 7-day curve. 5. Open Data readiness for the source assessment. No live feed or forecast model is connected yet.',
+footer:'Independent concept prototype · Not connected to live feeds · Published figures on the market page are manually transcribed and provisional · Source assessment updated 16 Nov 2026',
+legendLab:'Evidence type:',obs:'Observed',est:'Estimated',fc:'Forecast',ill:'Illustrative',nc:'Not connected',
+legendNote:'Observed = published official count · Estimated = derived (e.g. tourist share of metro entries) · Forecast = validated model output (none yet) · Illustrative = made-up for layout',
+scope:'Scope',pilot:'Taipei pilot',all:'All Taiwan',
+layers:'Map layers',
+L_weather:'Weather',L_weatherS:'CWA township forecast · source verified, key not set up',
+L_flow:'Metro station flow',L_flowS:'Taipei Metro hourly entries/exits · proxy, not visitor counts',
+L_access:'Transport access',L_accessS:'TDX rail/bus/YouBike · registration needed',
+L_poi:'Attractions & events',L_poiS:'Tourism Information Database · registry, not visits',
+L_stay:'Accommodation',L_stayS:'Hotel registry ≠ live room availability',
+mapNotePilot:'TAIPEI PILOT · real basemap · metro lines simplified between stations',mapNoteAll:'ALL TAIWAN · real basemap · HSR / east line simplified',
+mapFoot:'Overlays are illustrative. Lines are simplified, not service routes or timetables.',places:'Place',gmaps:'Open in Google Maps',
+
+brief:'Place brief',
+m_entries:'Station entries / day',m_entriesS:'Metro proxy — commuters + visitors mixed',
+m_share:'Est. visitor share',m_shareS:'Needs a validated method; not available',
+m_visits:'Visits / day',m_visitsS:'Needs daily partner counts',
+m_rain:'Rain probability',m_rainS:'CWA township forecast (12-h)',
+m_events:'Events this week',m_eventsS:'Tourism Information Database',
+m_stay:'Listed lodgings nearby',m_stayS:'Registry count, not availability',
+m_access:'Access status',m_accessS:'TDX real-time feeds',m_accessV:'Normal',
+flowTitle:'Action workflow (scenario)',flow1:'Signal: rain + weekend peak at this hub',flow2:'Evidence: CWA forecast + station-entry baseline',flow3:'Owner & due date: assign before acting',flow4:'Intervention: indoor route / staffing / signage',flow5:'Outcome: compare with same-weekday baseline',
+tlTitle:'Next 7 days · demand index',tlNote:'Shape only — no forecast model · dashed line = 100',day:'Day',idx:'index',
+marketTitle:'Two markets. Two distinct decisions.',marketSub:'Keep travel direction, reporting period and visitor definition separate before comparing.',
+toTW:'Japan → Taiwan',toJP:'Taiwan → Japan',
+jp1:'Taiwanese visitors to Japan · Jul 2026',jp1d:'+26.4% vs Jul 2025 (604,177)',
+jp2:'Taiwanese visitors to Japan · Sep 2026',jp2d:'+13.0% YoY',
+jp3:'Jan–Jul 2026 cumulative',jp3d:'+21.8% vs Jan–Jul 2025',
+tw1:'Japanese visitors to Taiwan · 2025',tw1v:'≈1.5 million',tw1d:'Reported as “nearly 1.5 million”; exact figure to pull from stat.taiwan.net.tw',
+tw2:'Japan’s rank among source markets · Jan–Jun 2026',tw2v:'#1',tw2d:'Ahead of Hong Kong and Korea; growth reported as negative to mid-July',
+tw3:'Monthly series 2026',tw3d:'Tourism Statistics Database monthly tables — not yet sampled',
+prov_jnto:'Observed · JNTO preliminary · manually entered',prov_jnto2:'Observed · JNTO via trade press · manually entered',prov_news:'Secondary report citing Tourism Administration',prov_pending:'To connect',
+defTitle:'Before comparing the two directions',
+def1:'JNTO 2026 monthly figures are preliminary estimates; the release excludes foreign residents of Japan. Confirm nationality vs residence basis.',
+def2:'Taiwan outbound statistics count trips by first destination country — a trip touching Japan second is not counted as Japan.',
+def3:'Taiwan inbound counts are border crossings by residence, not unique people.',
+def4:'Do not join monthly arrivals with annual survey spending without aligning periods and definitions.',
+decTitle:'Decision to support',
+decTW:'Which Taiwan destinations and seasons should the next Japan-market campaign target?',
+decJP:'When and where do Taiwanese travellers go in Japan — and which regions are under-visited relative to interest?',
+nextTitle:'Next data steps',
+nextTW:'Pull monthly Japan-resident arrivals (2019–2026) from the Tourism Statistics Database; add the 2024 inbound survey (SRDA) for Japanese visitor profile and spending.',
+nextJP:'Enter JNTO monthly Taiwan series (2019–2026); cross-check against Taiwan outbound-to-Japan; add Taiwan holiday calendar and JPY/TWD rate as drivers.',
+srcTitle:'Sources',
+dataTitle:'Source assessment: what to connect first',dataSub:'All 27 rows of the supplied inventory, triaged for a Taipei pilot. The inventory\'s “Next action” items are suggestions, not completed work.',
+c_now:'Integrate first',c_verify:'To verify',c_later:'Later',c_notnow:'Not suitable now',c_all:'All',
+th_src:'Source',th_status:'Status',th_dec:'Decision supported',th_grain:'Grain · cadence',th_lim:'Limits / caveat',th_chk:'Checked 16 Nov 2026',
+logDone:'Verified this session (16 Nov 2026)',logBlocked:'Not done / blocked',
+logD1:'CWA township forecast (F-D0047 series): 368 townships; 1-day hourly, 3-day 3-hourly, 7-day 12-hourly; issued 4×/day; XML/JSON; membership required.',
+logD2:'TDX: OAuth client_credentials token, 1-day lifetime; requests without token return 401; rate-limit errors 429/423/416 documented, exact quotas not published.',
+logD3:'Taipei Metro: hourly station entry/exit OD dataset on data.taipei replaces the legacy set from Jan 2017; no membership required. Files not sampled.',
+logD4:'JNTO: Jul 2026 release read (Taiwan 763,800, preliminary); Sep 2026 figure via trade press (595,600).',
+logB1:'data.gov.tw dataset pages could not be read by the fetch tool (robots restriction) — fields of immigration, airport, holiday, tour-bus sets remain unconfirmed.',
+logB2:'No API was called with credentials; no accounts registered (TDX, CWA, MOENV).',
+logB3:'Bank of Taiwan CSV and holiday JSON mirror not fetched (approval pending).',
+logB4:'stat.taiwan.net.tw tables not sampled; hotel occupancy table not located.',
+summaryTitle:'From visibility to a measurable Taipei pilot.',summarySub:'For tourism authorities, DMOs and destination operators.',
+s_done:'Done',s_rec:'Recommended',s_ver:'To verify',
+done1:'CSV inventory (27 sources) triaged into 4 groups with decision use.',done2:'CWA, TDX, Taipei Metro and JNTO access conditions checked from official docs.',done3:'Demo: Taipei pilot map, evidence-type tags, compact 7-day chart, market page with published figures.',
+rec1:'Phase 1 (Taipei): CWA forecast + holidays + Tourism Info DB events + Metro hourly entries at 8–10 tourist-hub stations. Output: weekly “pressure” view per hub.',
+rec2:'Phase 2 (markets): monthly Japan↔Taiwan series from both official sides, with definitions shown side by side.',
+rec3:'Phase 3: daily ground truth from 1–2 partner sites (tickets / gates) before any 7-day visitor forecast is shown.',
+ver1:'Immigration airport API: are values counted or forecast? Is history kept?',ver2:'Taoyuan airport: which daily dataset copy is current?',ver3:'Hotel occupancy: exact table and format.',ver4:'Licences for CWA, Bank of Taiwan, Google Trends.',
+gate:'Forecast gate: a 7-day visitor forecast needs daily ground truth, weather available at prediction time, holidays, a same-weekday baseline and rolling backtests. Monthly statistics and metro entries alone cannot support it.',
+learn:'Open source assessment'
+},ja:{
+brand:'台湾観光インテリジェンス',demo:'コンセプトデモ',eyebrow:'台湾 × 日本 / 観光地の意思決定支援',
+map:'地図',markets:'台湾 ↔ 日本',data:'データ整備状況',summary:'概要',
+mapTitle:'次にどこで手を打つか？',mapSub:'まず台北で試行：観光拠点、天候リスク、交通アクセス。すべての数値に根拠の種類を表示します。',
+guide:'使い方',help:'1. 範囲（台北試行／台湾全体）を選択。2. 地図上の地点を選択。3. レイヤーを切替（各レイヤーに出典と接続状況を表示）。4. 7日間カーブの日付をクリック。5. データ整備状況で出典評価を確認。リアルタイムデータや予測モデルは未接続です。',
+footer:'独立した試作版 · リアルタイムデータ未接続 · 市場ページの公表値は手入力・速報値 · 出典評価 2026年11月16日更新',
+legendLab:'根拠の種類：',obs:'観測値',est:'推計値',fc:'予測値',ill:'例示',nc:'未接続',
+legendNote:'観測値＝公式公表の集計 · 推計値＝加工・推定（例：駅入場者中の観光客比率） · 予測値＝検証済みモデル出力（現時点なし） · 例示＝レイアウト用の架空値',
+scope:'範囲',pilot:'台北試行',all:'台湾全体',
+layers:'地図レイヤー',
+L_weather:'天気',L_weatherS:'中央気象署 郷鎮予報 · 出典確認済、APIキー未設定',
+L_flow:'MRT駅の流動',L_flowS:'台北MRT 時間別入出場 · 代理指標であり観光客数ではない',
+L_access:'交通アクセス',L_accessS:'TDX 鉄道・バス・YouBike · 会員登録が必要',
+L_poi:'観光地・イベント',L_poiS:'観光資訊資料庫 · 台帳であり来訪数ではない',
+L_stay:'宿泊',L_stayS:'宿泊施設名簿 ≠ リアルタイム空室',
+mapNotePilot:'台北試行 · 実地図 · MRT路線は駅間を直線で簡略表示',mapNoteAll:'台湾全体 · 実地図 · 高鉄・東部線は簡略表示',
+mapFoot:'重ね表示は例示です。線は簡略化したもので、運行路線・時刻表ではありません。',places:'地点',gmaps:'Google マップで開く',
+airport:'桃園空港（TPE）→',
+brief:'地点の概要',
+m_entries:'1日の駅入場者数',m_entriesS:'MRT代理指標 — 通勤者と旅行者が混在',
+m_share:'観光客比率（推計）',m_shareS:'検証済みの手法が必要。未整備',
+m_visits:'1日の来訪者数',m_visitsS:'事業者の日次実績が必要',
+m_rain:'降水確率',m_rainS:'中央気象署 郷鎮予報（12時間）',
+m_events:'今週のイベント',m_eventsS:'観光資訊資料庫',
+m_stay:'周辺の登録宿泊施設',m_stayS:'登録件数であり空室ではない',
+m_access:'アクセス状況',m_accessS:'TDX リアルタイム',m_accessV:'通常',
+flowTitle:'アクションの流れ（シナリオ）',flow1:'シグナル：雨＋週末ピーク',flow2:'根拠：気象予報＋駅入場の基準値',flow3:'担当者と期限を設定してから実行',flow4:'施策：屋内ルート・人員配置・案内表示',flow5:'結果：同曜日の基準値と比較',
+tlTitle:'今後7日間 · 需要指数',tlNote:'形状のみ — 予測モデルなし · 点線＝100',day:'日目',idx:'指数',
+marketTitle:'2つの市場、それぞれの意思決定。',marketSub:'旅行方向、集計期間、来訪者の定義を分けてから比較します。',
+toTW:'日本 → 台湾',toJP:'台湾 → 日本',
+jp1:'訪日台湾人数 · 2026年7月',jp1d:'前年同月（604,177人）比 +26.4%',
+jp2:'訪日台湾人数 · 2026年9月',jp2d:'前年同月比 +13.0%',
+jp3:'2026年1〜7月 累計',jp3d:'前年同期比 +21.8%',
+tw1:'訪台日本人数 · 2025年',tw1v:'約150万人',tw1d:'「150万人近く」と報道。正確な値は観光統計資料庫から取得予定',
+tw2:'客源市場における日本の順位 · 2026年1〜6月',tw2v:'1位',tw2d:'香港・韓国を上回る。7月中旬までの伸び率はマイナスと報道',
+tw3:'2026年 月次系列',tw3d:'観光統計資料庫の月次表 — 未取得',
+prov_jnto:'観測値 · JNTO速報値 · 手入力',prov_jnto2:'観測値 · JNTO（業界紙経由） · 手入力',prov_news:'観光署を引用した二次報道',prov_pending:'接続予定',
+defTitle:'双方向を比較する前に',
+def1:'JNTOの2026年月次値は推計値（速報）。日本在住の外国人は除外。国籍ベースか居住地ベースかを確認。',
+def2:'台湾の出国統計は「最初の目的地」で計上。第2目的地が日本の旅行は日本に含まれない。',
+def3:'台湾の入境数は居住地別の延べ入境であり、実人数ではない。',
+def4:'月次入境数と年次調査の消費額は、期間と定義をそろえずに結合しない。',
+decTitle:'支援する意思決定',
+decTW:'次の日本市場向け施策は、台湾のどの地域・時期を対象にすべきか？',
+decJP:'台湾人旅行者はいつ・日本のどこへ行くのか。関心に比べて来訪が少ない地域はどこか？',
+nextTitle:'次のデータ作業',
+nextTW:'観光統計資料庫から日本居住者の月次入境数（2019〜2026年）を取得。2024年来台旅客調査（SRDA）で日本人の属性と消費を把握。',
+nextJP:'JNTOの台湾月次系列（2019〜2026年）を入力し、台湾側の訪日出国数と照合。台湾の祝日と円/台湾ドル相場を要因として追加。',
+srcTitle:'出典',
+dataTitle:'出典評価：まず何を接続するか',dataSub:'提供されたデータ一覧の全27件を台北試行の観点で分類。一覧の「Next action」は提案であり、実施済みではありません。',
+c_now:'優先接入',c_verify:'要検証',c_later:'後続検討',c_notnow:'現時点で不適',c_all:'すべて',
+th_src:'出典',th_status:'区分',th_dec:'支援する判断',th_grain:'粒度 · 頻度',th_lim:'制約・注意点',th_chk:'2026年11月16日の確認',
+logDone:'本セッションで確認（2026年11月16日）',logBlocked:'未実施・アクセス不可',
+logD1:'中央気象署 郷鎮予報（F-D0047系列）：368郷鎮、1日＝毎時、3日＝3時間毎、7日＝12時間毎、1日4回発表、XML/JSON、会員登録が必要。',
+logD2:'TDX：OAuth client_credentials、トークン有効期限1日。トークンなしは401。429/423/416の制限エラーは記載あり、具体的な上限値は非公表。',
+logD3:'台北MRT：data.taipeiの時間別入出場（OD）データが2017年1月から旧データを置換。会員登録不要。ファイルは未取得。',
+logD4:'JNTO：2026年7月発表を確認（台湾763,800人・推計値）。9月値は業界紙経由（595,600人）。',
+logB1:'data.gov.tw のデータセットページは取得ツールで読めず（robots制限）。移民署・空港・祝日・台湾好行の項目は未確認。',
+logB2:'認証付きAPIの呼び出し・アカウント登録は未実施（TDX、中央気象署、環境部）。',
+logB3:'台湾銀行CSV・祝日JSONミラーは未取得（承認待ち）。',
+logB4:'stat.taiwan.net.tw の表は未取得。宿泊稼働率の表は所在未確認。',
+summaryTitle:'現状把握から、効果測定できる台北試行へ。',summarySub:'観光行政・DMO・観光事業者向け。',
+s_done:'完了',s_rec:'提案',s_ver:'要検証',
+done1:'データ一覧（27件）を4区分に分類し、支援する判断を整理。',done2:'中央気象署・TDX・台北MRT・JNTOの利用条件を公式資料で確認。',done3:'デモ：台北試行マップ、根拠タグ、コンパクトな7日間グラフ、公表値入りの市場ページ。',
+rec1:'第1段階（台北）：気象予報＋祝日＋観光資訊資料庫のイベント＋観光拠点8〜10駅のMRT時間別入場。出力：拠点別の週次「混雑圧力」ビュー。',
+rec2:'第2段階（市場）：日台双方の公式月次系列を、定義を並べて表示。',
+rec3:'第3段階：7日間来訪予測を表示する前に、1〜2か所の事業者から日次実績（チケット・ゲート）を取得。',
+ver1:'移民署空港API：値は実績か予測か？履歴は保持されるか？',ver2:'桃園空港：どの日次データが最新か？',ver3:'宿泊稼働率：該当表と形式。',ver4:'中央気象署・台湾銀行・Google Trendsの利用条件。',
+gate:'予測の条件：7日間の来訪予測には、日次の実績、予測時点で入手可能な気象、祝日、同曜日基準、ローリング検証が必要。月次統計やMRT入場数だけでは不十分です。',
+learn:'出典評価を開く'
+}};
+
+/* ---------- places ---------- */
+// [en, ja, lat, lon, baseEntries, events, lodgings]
+const PILOT_DIR=['right','left','left','right','bottom','right','right','right','right','right'];
+const PILOT=[
+['Taipei Main','台北車站',25.0478,121.5170,148000,6,212],
+['Ximen','西門',25.0421,121.5081,62000,4,138],
+['Longshan Temple','龍山寺',25.0353,121.5000,31000,2,41],
+['Zhongshan','中山',25.0527,121.5203,58000,3,96],
+['Dongmen','東門',25.0339,121.5287,36000,2,33],
+['Taipei 101 / WTC','台北101/世貿',25.0330,121.5654,45000,5,58],
+['Shilin','士林',25.0935,121.5262,39000,2,22],
+['Xinbeitou','新北投',25.1369,121.5030,12000,1,31],
+['Tamsui','淡水',25.1677,121.4456,41000,3,27],
+['Songshan Airport','松山機場',25.0634,121.5520,21000,0,9]];
+const ALL=[
+['Taipei','台北',25.04,121.56,1250,9,640],
+['Sun Moon Lake','日月潭',23.86,120.92,730,2,85],
+['Alishan','阿里山',23.51,120.80,540,1,48],
+['Tainan','台南',22.99,120.20,910,4,260],
+['Kaohsiung','高雄',22.63,120.30,1100,5,330],
+['Hualien','花蓮',23.99,121.60,610,2,190]];
+const COAST=[[121.537,25.297],[121.74,25.15],[122.0,25.01],[121.82,24.86],[121.86,24.6],[121.74,24.35],[121.62,23.98],[121.52,23.6],[121.38,23.1],[121.15,22.75],[120.9,22.34],[120.85,21.9],[120.7,21.95],[120.59,22.37],[120.27,22.62],[120.1,23.0],[120.05,23.15],[120.15,23.38],[120.2,23.78],[120.4,24.07],[120.5,24.27],[120.67,24.5],[120.92,24.82],[121.1,25.05],[121.4,25.18],[121.5,25.29]];
+const LINES=[ // schematic metro lines for pilot
+{c:'#e3575f',p:[[25.1677,121.4456],[25.1321,121.4986],[25.0935,121.5262],[25.0527,121.5203],[25.0478,121.5170],[25.0329,121.5182],[25.0331,121.5435],[25.0330,121.5654]]},
+{c:'#e3575f',p:[[25.1321,121.4986],[25.1369,121.5030]]},
+{c:'#4f8fd8',p:[[25.0353,121.5000],[25.0421,121.5081],[25.0478,121.5170],[25.0416,121.5437],[25.0411,121.5651]]},
+{c:'#b28a52',p:[[25.0634,121.5520],[25.0521,121.5440],[25.0416,121.5437]]}];
+const TL=[80,87,75,91,108,132,118];
+
+/* ---------- 27 sources ---------- */
+// st: now|verify|later|notnow ; fields: n(en,ja), d(en,ja), g, l(en,ja), c(en,ja), u
+const SRC=[
+{st:'now',n:['Tourism Statistics Database (arrivals, outbound)','観光統計資料庫（入境・出国）'],d:['Japan→Taiwan monthly trend; cross-check Taiwan→Japan','日本→台湾の月次動向、台湾→日本の照合'],g:'Country × month · monthly',l:['Outbound counted by first destination; border crossings, not people; revisions possible','出国は最初の目的地で計上。延べ数。改訂の可能性'],c:['Not sampled; site tables to open','未取得。表を要確認'],u:'https://stat.taiwan.net.tw/'},
+{st:'now',n:['Tourism Information Database (attractions, events, lodging)','観光資訊資料庫（観光地・イベント・宿泊）'],d:['Destination registry; event dates as demand signals','観光地台帳、イベント日程を需要シグナルに'],g:'Point / event · daily',l:['Registry, not visits; listed prices; Google-based coords','台帳であり来訪数ではない。掲載価格'],c:['Open licence per inventory; API not called','オープンライセンス（一覧記載）。API未呼出'],u:'https://media.taiwan.net.tw/'},
+{st:'verify',n:['Immigration Agency airport passenger API (TPE T1/T2)','移民署 空港旅客API（桃園T1/T2）'],d:['Near-live outbound signal of Taiwanese departures','台湾人出国の準リアルタイム指標'],g:'Terminal × ~3 h',l:['Titles say “forecast”; outbound has nationality, not destination','名称に「予測」。出国は国籍のみで行先なし'],c:['data.gov.tw page not readable here; counted vs forecast unknown','data.gov.tw読めず。実績か予測か不明'],u:'https://opendata.immigration.gov.tw/v2/api-docs'},
+{st:'now',n:['TDX Transport Data eXchange','TDX 交通データ交換'],d:['Last-mile access, disruptions, station patronage','二次交通、運行障害、駅利用'],g:'Route / stop / vehicle · minutes',l:['Movement ≠ tourists; best-effort realtime','移動≠観光客。リアルタイムはベストエフォート'],c:['Auth confirmed: OAuth token 1 day; quotas unpublished; not registered','認証方式確認：トークン1日。上限非公表。未登録'],u:'https://tdx.transportdata.tw/'},
+{st:'now',n:['Central Weather Administration open data','中央気象署 オープンデータ'],d:['Weather exposure; rain/typhoon flags for staffing and routing','天候リスク、雨・台風フラグで人員・動線判断'],g:'368 townships · 4×/day',l:['Forecast ≠ visitors; keep forecasts and observations separate','予報≠来訪者。予報と観測を分離'],c:['Catalog confirmed (F-D0047); membership needed; licence to check','カタログ確認（F-D0047）。会員登録要。利用条件要確認'],u:'https://opendata.cwa.gov.tw/'},
+{st:'verify',n:['Bank of Taiwan daily FX (JPY/TWD)','台湾銀行 日次為替（円/台湾ドル）'],d:['Price driver for Taiwan→Japan travel','台湾→日本旅行の価格要因'],g:'Currency × day',l:['Bank board rate, not mid-rate; store daily for history','銀行公示レート。履歴は日次保存が必要'],c:['Described by third parties only; CSV not fetched','第三者情報のみ。CSV未取得'],u:'https://rate.bot.com.tw/xrt'},
+{st:'now',n:['Government holiday calendar (DGPA)','行政院 人事行政総処 祝日カレンダー'],d:['Long weekends drive domestic peaks and outbound to Japan','連休が国内ピークと訪日を左右'],g:'Date · published yearly',l:['Official set Big5; JSON mirrors unofficial','公式はBig5。JSONミラーは非公式'],c:['Mirror not fetched; official dataset to open','ミラー未取得。公式版を要確認'],u:'https://github.com/ruyut/TaiwanCalendar'},
+{st:'now',n:['Taipei Metro hourly station entries / OD','台北MRT 時間別入出場・OD'],d:['Hub pressure at tourist stations (proxy)','観光拠点駅の混雑圧力（代理指標）'],g:'Station pair × hour · monthly files',l:['Commuters + visitors mixed; not a visitor count','通勤者と旅行者が混在。来訪者数ではない'],c:['Confirmed on metro.taipei: OD set from Jan 2017, no membership; files not sampled','metro.taipeiで確認：2017年1月〜、登録不要。ファイル未取得'],u:'https://www.metro.taipei/cp.aspx?n=BDEB860F2BE3E249'},
+{st:'verify',n:['Taoyuan Airport daily passenger statistics','桃園空港 日次旅客統計'],d:['Gateway volume context','玄関口の旅客量'],g:'Airport × day',l:['No nationality split; data moved to ODP — which copy is current?','国籍別なし。ODPへ移行—最新版を確認'],c:['ODP site not opened','ODP未確認'],u:'https://odp.taoyuan-airport.com/'},
+{st:'later',n:['Inbound Visitor Expenditure & Trend Survey (SRDA microdata)','来台旅客消費・動向調査（SRDA個票）'],d:['Japanese visitor profile and spending','日本人旅行者の属性・消費'],g:'Respondent · annual, ~2-yr lag',l:['Sample survey; account/terms may apply','標本調査。登録・規約の可能性'],c:['Not checked','未確認'],u:'https://srda.sinica.edu.tw/'},
+{st:'later',n:['Annual tourism CSV sets (data.gov.tw)','年次観光統計CSV（data.gov.tw）'],d:['Long history for baselines','基準値用の長期履歴'],g:'Country × year',l:['Annual only','年次のみ'],c:['Not sampled','未取得'],u:'https://data.gov.tw/en/datasets/15450'},
+{st:'later',n:['Monthly visits to major recreation sites','主要観光地点 月別来訪者数'],d:['Seasonality context by site type','地点種別の季節性'],g:'Site × month · annual release',l:['Methods differ by site; visits ≠ people; not real time','計数方法が地点で異なる。リアルタイムではない'],c:['Not sampled','未取得'],u:'https://data.gov.tw/dataset/7327'},
+{st:'later',n:['YouBike real-time stations','YouBike リアルタイム'],d:['Short-trip activity near hubs','拠点周辺の短距離移動'],g:'Station × minute',l:['Not tourists; feed city unclear; must log to build history','観光客ではない。対象都市不明。履歴は自前で蓄積'],c:['Not called; TDX lists history functions','未呼出。TDXに履歴機能あり'],u:'https://data.gov.tw/en/datasets/173677'},
+{st:'notnow',n:['Tourism events: visitors & economic benefit','観光イベント：来場者数・経済効果'],d:['Event context only','イベントの参考情報のみ'],g:'Event × year',l:['Method not stated; do not use as impact evidence','手法不明。効果の根拠には使わない'],c:['Not sampled','未取得'],u:'https://data.gov.tw/en/datasets/42792'},
+{st:'notnow',n:['MOENV air quality (AQI)','環境部 大気質（AQI）'],d:['Comfort/health flag only','快適性・健康の注意フラグのみ'],g:'Station × hour',l:['Weak tourism driver; key required','観光への影響は弱い。キー要'],c:['Not called','未呼出'],u:'https://data.moenv.gov.tw/'},
+{st:'notnow',n:['Taichung annual visits (city example)','台中市 年次来訪者数（例）'],d:['Outside Taipei pilot; revisit for expansion','台北試行の対象外。拡大時に再検討'],g:'City area × year',l:['City formats differ; cannot stack','都市ごとに形式が異なる'],c:['Not sampled','未取得'],u:'https://data.gov.tw/en/datasets/177631'},
+{st:'later',n:['OpenStreetMap Taiwan (Geofabrik)','OpenStreetMap 台湾'],d:['Real basemap, roads, POI gaps','実地図、道路、POI補完'],g:'Feature · daily',l:['ODbL attribution/share-alike; uneven coverage','ODbL表示義務。網羅性に差'],c:['Not opened','未確認'],u:'https://download.geofabrik.de/asia/taiwan.html'},
+{st:'later',n:['Overture Maps Places (Taiwan)','Overture Maps Places（台湾）'],d:['POI supplement around hubs','拠点周辺のPOI補完'],g:'Point · versioned',l:['Deduplicate vs OSM and Tourism DB','OSM・観光DBと重複除去が必要'],c:['Not re-checked','未再確認'],u:'https://docs.overturemaps.org/guides/places/'},
+{st:'verify',n:['Hotel & B&B occupancy and room rates','ホテル・民宿の稼働率・客室単価'],d:['Monthly accommodation pressure by region','地域別の月次宿泊需給'],g:'Region × month',l:['Self-reported; monthly ≠ live availability','自己申告。月次≠リアルタイム空室'],c:['Table not located (news only)','表の所在未確認（報道のみ）'],u:'https://stat.taiwan.net.tw/'},
+{st:'verify',n:['CAA airport traffic (all airports)','民用航空局 空港別輸送実績'],d:['Gateways beyond Taoyuan (Songshan, Kaohsiung)','桃園以外の玄関口'],g:'Airport × month',l:['Current page unknown','現行ページ不明'],c:['Secondary sources only','二次情報のみ'],u:'https://www.caa.gov.tw/'},
+{st:'verify',n:['Taiwan Tour Bus ridership & stops','台湾好行 乗車人数・停留所'],d:['Tourist-specific transport demand','観光客向け交通の需要'],g:'Route / stop',l:['Titles seen only','名称のみ確認'],c:['Pages not opened','未確認'],u:'https://data.gov.tw/en'},
+{st:'later',n:['National park visitor & vehicle counts','国家公園 来訪者・車両数'],d:['Hualien/Taroko expansion','花蓮・太魯閣への拡大時'],g:'Park / site',l:['Titles seen only','名称のみ確認'],c:['Not opened','未確認'],u:'https://data.gov.tw/en'},
+{st:'verify',n:['Google Trends (Taiwan searches for Japan)','Google トレンド（台湾からの日本検索）'],d:['Early interest signal by Japanese region','日本の地域別関心の先行指標'],g:'Region × day/week · relative index',l:['Relative index, sampling noise; automation terms','相対指数、サンプル誤差、自動取得の規約'],c:['Terms not checked; manual use only for now','規約未確認。当面は手動'],u:'https://trends.google.com/'},
+{st:'later',n:['Wikimedia pageviews (zh articles on Japan)','Wikimedia 閲覧数（中国語版の日本記事）'],d:['Secondary interest proxy','補助的な関心指標'],g:'Article × day',l:['zh ≠ Taiwan only; bots/news spikes','中国語版≠台湾のみ。ボット・報道で変動'],c:['Not re-checked','未再確認'],u:'https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/reference/page-views.html'},
+{st:'now',n:['data.gov.tw portal','data.gov.tw ポータル'],d:['Discovery: record dataset IDs and update dates','探索：データセットIDと更新日を記録'],g:'Varies',l:['Many tourism sets annual or stale','観光データの多くは年次・古い'],c:['Pages not readable by fetch tool here; browse manually','取得ツールで読めず。手動で閲覧'],u:'https://data.gov.tw/en'},
+{st:'now',n:['Taipei City Open Data (data.taipei)','台北市オープンデータ（data.taipei）'],d:['Host of Metro OD and Taipei datasets','MRT ODなど台北データの提供元'],g:'Varies',l:['Old links may be stale','古いリンクに注意'],c:['Confirmed as Metro OD host via metro.taipei','metro.taipei経由でMRT ODの提供元と確認'],u:'https://data.taipei/'},
+{st:'later',n:['New Taipei City Open Data','新北市オープンデータ'],d:['Tamsui / Jiufen expansion','淡水・九份への拡大時'],g:'Varies',l:['Not opened','未確認'],c:['Not opened','未確認'],u:'https://data.ntpc.gov.tw/'}];
+
+/* ---------- state ---------- */
+let lang='en',view='map',scope='pilot',site=0,day=0,direction='jp',filter='all',layers=new Set(['weather','flow','access','poi']);
+const t=k=>S[lang][k]??k;const loc=a=>a[lang==='en'?0:1];
+const $=s=>document.querySelector(s);
+const prov=(k,label)=>`<span class="prov ${k}">${label||t(k)}</span>`;
+const fmt=n=>n.toLocaleString(lang==='ja'?'ja-JP':'en-US');
+
+function project(pts,W,H,pad){ // pts: [lat,lon]
+  const lats=pts.map(p=>p[0]),lons=pts.map(p=>p[1]);
+  const midLat=(Math.min(...lats)+Math.max(...lats))/2,kx=Math.cos(midLat*Math.PI/180);
+  const x0=Math.min(...lons),x1=Math.max(...lons),y0=Math.min(...lats),y1=Math.max(...lats);
+  const s=Math.min((W-2*pad)/((x1-x0)*kx),(H-2*pad)/(y1-y0));
+  const ox=(W-(x1-x0)*kx*s)/2,oy=(H-(y1-y0)*s)/2;
+  return ([lat,lon])=>[ox+(lon-x0)*kx*s,oy+(y1-lat)*s];
+}
+
+/* ---------- Leaflet basemap (key-free tiles, same approach as the Fukui DHDE app) ---------- */
+const BASEMAPS={
+ dark:{en:'Dark',ja:'ダーク',layers:[['https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'}],['https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:16}]]},
+ streets:{en:'Streets',ja:'道路',layers:[['https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',className:'tiles-streets'}]]},
+ hybrid:{en:'Satellite',ja:'衛星',layers:[['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,attribution:'Imagery &copy; Esri, Maxar, Earthstar Geographics · Labels &copy; Esri'}],['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:18}]]}};
+const HSR=[[25.0478,121.5170],[24.1120,120.6160],[22.9250,120.2860],[22.6870,120.3070]];
+const EAST=[[25.0478,121.5170],[24.7540,121.7580],[23.9930,121.6010]];
+let basemap='dark',lmap=null,mapEl=null,baseGroup=null,overlay=null,lastScope=null;
+function ensureMap(){
+  if(typeof L==='undefined')return null;
+  if(lmap)return lmap;
+  mapEl=document.createElement('div');mapEl.id='lmap';mapEl.setAttribute('aria-label','Map');
+  lmap=L.map(mapEl,{zoomControl:true,attributionControl:true,zoomSnap:.25,scrollWheelZoom:true});
+  mapEl.style.position='absolute';mapEl.style.inset='0';
+  lmap.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
+  baseGroup=L.layerGroup().addTo(lmap);overlay=L.layerGroup().addTo(lmap);
+  return lmap;
+}
+function setBase(){baseGroup.clearLayers();BASEMAPS[basemap].layers.forEach(([u,o])=>baseGroup.addLayer(L.tileLayer(u,o)))}
+function updateMap(){
+  const host=document.getElementById('lmapHost');if(!host)return;
+  if(!ensureMap()){host.innerHTML=`<div class="map-fallback">${lang==='en'?'Map library failed to load.':'地図ライブラリを読み込めませんでした。'}</div>`;return}
+  host.appendChild(mapEl);
+  if(baseGroup._base!==basemap){setBase();baseGroup._base=basemap}
+  overlay.clearLayers();
+  const P=scope==='pilot'?PILOT:ALL,maxE=P[0][4];
+  if(layers.has('access')){
+    if(scope==='pilot')LINES.forEach(l=>overlay.addLayer(L.polyline(l.p,{color:l.c,weight:4,opacity:.75,dashArray:'1 0'})));
+    else{overlay.addLayer(L.polyline(HSR,{color:'#e8a35b',weight:3,opacity:.85,dashArray:'8 6'}));overlay.addLayer(L.polyline(EAST,{color:'#b5b4ff',weight:3,opacity:.85,dashArray:'4 6'}))}
+  }
+  P.forEach((p,i)=>{
+    const ll=[p[2],p[3]],sel=i===site,rel=p[4]/maxE;
+    if(layers.has('flow')&&scope==='pilot')overlay.addLayer(L.circle(ll,{radius:250+rel*900,stroke:false,fillColor:'#8ee4cc',fillOpacity:.18,interactive:false}));
+    if(layers.has('weather')){const r=rain(i,day);overlay.addLayer(L.circleMarker(ll,{radius:10+r/7,color:'#8fc3ff',weight:2,opacity:r/110,dashArray:'2 4',fill:false,interactive:false}))}
+    if(scope==='all'&&layers.has('poi'))overlay.addLayer(L.circle(ll,{radius:4000+rel*16000,stroke:false,fillColor:'#e9c980',fillOpacity:.12,interactive:false}));
+    let badge='';if(sel&&layers.has('poi')&&p[5])badge+=`<span class="mk poi">▲${p[5]}</span>`;if(sel&&layers.has('stay'))badge+=`<span class="mk stay">■${p[6]}</span>`;
+    const m=L.circleMarker(ll,{radius:sel?9:6,color:'#0b1a26',weight:2,fillColor:sel?'#8ee4cc':'#e6f0ef',fillOpacity:1,bubblingMouseEvents:false});
+    const dir=scope==='pilot'?PILOT_DIR[i]:'right';
+    m.bindTooltip(`${L_(p)}${badge}`,{permanent:true,direction:dir,offset:dir==='left'?[-8,0]:dir==='bottom'?[0,8]:[8,0],className:'lbl'+(sel?' sel':'')});
+    m.on('click',()=>{site=i;draw()});
+    overlay.addLayer(m);
+  });
+  if(lastScope!==scope){lastScope=scope;requestAnimationFrame(()=>{lmap.invalidateSize();lmap.fitBounds(L.latLngBounds(P.map(p=>[p[2],p[3]])).pad(scope==='pilot'?.12:.08))})}
+  else requestAnimationFrame(()=>lmap.invalidateSize());
+}
+const L_=p=>p[lang==='en'?0:1];
+const gmaps=p=>`https://www.google.com/maps/search/${encodeURIComponent(p[1])}/@${p[2].toFixed(5)},${p[3].toFixed(5)},${scope==='pilot'?16:12}z`;
+function rain(i,d){return [30,45,60,40,25,55,70][(i+d)%7]}
+
+function detail(){
+  const P=scope==='pilot'?PILOT:ALL,p=P[site],f=1+(TL[day]-100)/250;
+  let rows='';
+  if(scope==='pilot'){
+    rows+=row(t('m_entries'),t('m_entriesS'),layers.has('flow')?fmt(Math.round(p[4]*f/100)*100):'—','ill');
+    rows+=row(t('m_share'),t('m_shareS'),'—','nc');
+  }else rows+=row(t('m_visits'),t('m_visitsS'),fmt(Math.round(p[4]*f)),'ill');
+  if(layers.has('weather'))rows+=row(t('m_rain'),t('m_rainS'),rain(site,day)+'%','ill');
+  if(layers.has('poi'))rows+=row(t('m_events'),t('m_eventsS'),p[5],'ill');
+  if(layers.has('stay'))rows+=row(t('m_stay'),t('m_stayS'),p[6],'ill');
+  if(layers.has('access'))rows+=row(t('m_access'),t('m_accessS'),t('m_accessV'),'ill');
+  return `<div class="eyebrow">${t('brief')}</div><h1 style="font-size:22px;margin-bottom:2px">${loc(p)}</h1><a class="mini" href="${gmaps(p)}" target="_blank" rel="noreferrer">↗ ${t('gmaps')}</a>${rows}
+  <div class="flow"><h3>${t('flowTitle')}</h3><ol>${[1,2,3,4,5].map(i=>`<li>${t('flow'+i)}</li>`).join('')}</ol></div>`;
+}
+function row(k,s,v,pv){return `<div class="statrow"><div class="k"><span>${k}</span><small>${s}</small></div><div style="text-align:right"><b>${v}</b><br>${prov(pv)}</div></div>`}
+
+function timeline(){
+  const P=scope==='pilot'?PILOT:ALL,W=1000,H=170,top=14,bot=24;
+  const mn=60,mx=140,X=i=>40+i*(W-80)/6,Y=v=>top+(mx-v)/(mx-mn)*(H-top-bot);
+  const pts=TL.map((v,i)=>[X(i),Y(v)]);
+  const d='M'+pts.map(p=>p.join(',')).join(' L');
+  const base=Y(100);
+  return `<section class="panel timeline"><div class="tl-head"><h2>${t('tlTitle')}</h2><span class="val">${loc(P[site])} · ${lang==='ja'?(day+1)+t('day'):t('day')+' '+(day+1)} · ${t('idx')} <b style="color:var(--text)">${TL[day]}</b></span><span class="sp"></span>${prov('ill')}<span class="mini">${t('tlNote')}</span></div>
+  <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="${t('tlTitle')}">
+  <line x1="40" x2="${W-40}" y1="${base}" y2="${base}" stroke="#ffffff22" stroke-dasharray="4 6"/>
+  <path d="${d} L${X(6)},${H-bot} L${X(0)},${H-bot}Z" fill="#b5b4ff1f"/>
+  <path d="${d}" fill="none" stroke="#b5b4ff" stroke-width="3" stroke-dasharray="9 5" vector-effect="non-scaling-stroke"/>
+  <line x1="${X(day)}" x2="${X(day)}" y1="${top-6}" y2="${H-bot}" stroke="#8ee4cc" stroke-width="2" vector-effect="non-scaling-stroke"/>
+  ${pts.map((p,i)=>`<rect x="${p[0]-40}" y="0" width="80" height="${H}" fill="transparent" data-day="${i}" style="cursor:pointer"/>`).join('')}
+  </svg>
+  <div class="days">${TL.map((_,i)=>`<button class="${i===day?'active':''}" data-day="${i}" aria-pressed="${i===day}">${lang==='ja'?(i+1)+t('day'):t('day')+' '+(i+1)}</button>`).join('')}</div></section>`;
+}
+
+function mapView(){
+  const layerList=['weather','flow','access','poi','stay'].filter(l=>scope==='pilot'||l!=='flow');
+  return `<div class="toolbar"><span class="lab">${t('scope')}</span>${['pilot','all'].map(s=>`<button data-scope="${s}" class="${scope===s?'active':''}" aria-pressed="${scope===s}">${t(s)}</button>`).join('')}<span class="lab" style="margin-left:10px">${t('places')}</span><select id="placeSel" aria-label="${t('places')}">${(scope==='pilot'?PILOT:ALL).map((p,i)=>`<option value="${i}" ${i===site?'selected':''}>${loc(p)}</option>`).join('')}</select></div>
+  <div class="layout"><aside class="panel layers"><h2>${t('layers')}</h2>${layerList.map(l=>{const k='L_'+l;return `<label><input type="checkbox" data-layer="${l}" ${layers.has(l)?'checked':''}><span>${t(k)}<small>${t(k+'S')}</small></span></label>`}).join('')}</aside>
+  <section class="panel map"><div id="lmapHost"></div><div class="map-label">${t(scope==='pilot'?'mapNotePilot':'mapNoteAll')}</div><div class="basemaps" role="group" aria-label="Basemap">${Object.keys(BASEMAPS).map(k=>`<button data-base="${k}" class="${basemap===k?'active':''}" aria-pressed="${basemap===k}">${BASEMAPS[k][lang]}</button>`).join('')}</div><div class="map-foot">${t('mapFoot')}</div></section>
+  <aside class="panel detail">${detail()}</aside></div>${timeline()}`;
+}
+
+function marketsView(){
+  const jp=direction==='jp';
+  const cards=jp?[
+    [t('jp1'),'763,800',t('jp1d'),prov('obs',t('prov_jnto'))],
+    [t('jp2'),'595,600',t('jp2d'),prov('obs',t('prov_jnto2'))],
+    [t('jp3'),'4,736,000',t('jp3d'),prov('obs',t('prov_jnto'))]]:[
+    [t('tw1'),t('tw1v'),t('tw1d'),prov('est',t('prov_news'))],
+    [t('tw2'),t('tw2v'),t('tw2d'),prov('obs',t('prov_news'))],
+    [t('tw3'),'—',t('tw3d'),prov('nc',t('prov_pending'))]];
+  const src=jp?[['JNTO — Visitor arrivals, July 2026 (PDF)','https://asset.japan.travel/image/upload/v1787134368/pdf/Number_of_visitor_arrivals_to_Japan_in_July_2026.pdf'],['Travel Voice — September 2026 arrivals (citing JNTO)','https://www.travelvoice.jp/english/international-arrivals-in-japan-in-september-2026-were-down-5-0-to-3-1-million-yoy-reduction-for-two-consecutive-months/print'],['JNTO statistics portal','https://statistics.jnto.go.jp/en/']]:[['uanalyze — 2025 Japanese visitors (citing Tourism Administration)','https://uanalyze.com.tw/articles/2194250531'],['udn / CNA — Jan–Jun 2026 source-market ranking','https://udn.com/news/story/7266/9657561'],['Tourism Statistics Database','https://stat.taiwan.net.tw/']];
+  return `<section class="wrap"><div class="direction">${['jp','tw'].map(d=>`<button data-dir="${d}" class="${direction===d?'active':''}" aria-pressed="${direction===d}">${t(d==='jp'?'toJP':'toTW')}</button>`).join('')}</div>
+  <div class="grid3">${cards.map(c=>`<div class="panel"><h2>${c[0]}</h2><div class="big">${c[1]}</div><div class="delta">${c[2]}</div><div class="card-foot">${c[3]}</div></div>`).join('')}</div>
+  <div class="grid3" style="margin-top:12px;grid-template-columns:1.2fr 1fr 1fr">
+   <div class="panel"><h2>${t('decTitle')}</h2><p style="color:var(--text);font-size:16px">${t(jp?'decJP':'decTW')}</p><h3 style="margin-top:14px">${t('nextTitle')}</h3><p>${t(jp?'nextJP':'nextTW')}</p></div>
+   <div class="panel"><h2>${t('defTitle')}</h2><ul class="src">${[1,2,3,4].map(i=>`<li>${t('def'+i)}</li>`).join('')}</ul></div>
+   <div class="panel"><h2>${t('srcTitle')}</h2><ul class="src">${src.map(s=>`<li><a href="${s[1]}" target="_blank" rel="noreferrer">${s[0]} ↗</a></li>`).join('')}</ul></div>
+  </div></section>`;
+}
+
+function dataView(){
+  const order=['now','verify','later','notnow'];
+  const n=k=>SRC.filter(s=>s.st===k).length;
+  const rows=SRC.filter(s=>filter==='all'||s.st===filter).sort((a,b)=>order.indexOf(a.st)-order.indexOf(b.st));
+  return `<section class="wrap"><div class="ok">${lang==='en'?'Inventory read: 27 sources × 18 fields from the supplied CSV. The Google Sheet itself is not used.':'データ一覧を読込済：CSVの27件×18項目。Googleシート本体は使用していません。'}</div>
+  <div class="counts">${order.map(k=>`<button class="count ${filter===k?'active':''}" data-filter="${k}" aria-pressed="${filter===k}"><span class="st ${k}">${t('c_'+k)}</span><b>${n(k)}</b></button>`).join('')}</div>
+  ${filter!=='all'?`<button data-filter="all" style="margin-bottom:10px">${t('c_all')} (27)</button>`:''}
+  <div class="panel tablewrap"><table><thead><tr>${['th_src','th_status','th_dec','th_grain','th_lim','th_chk'].map(k=>`<th>${t(k)}</th>`).join('')}</tr></thead><tbody>
+  ${rows.map(s=>`<tr><td><b>${loc(s.n)}</b>${s.u?`<a class="g" href="${s.u}" target="_blank" rel="noreferrer">↗ ${s.u.replace(/^https?:\/\//,'').slice(0,40)}</a>`:''}</td><td><span class="st ${s.st}">${t('c_'+s.st)}</span></td><td>${loc(s.d)}</td><td class="mini">${s.g}</td><td>${loc(s.l)}</td><td class="mini">${loc(s.c)}</td></tr>`).join('')}
+  </tbody></table></div>
+  <div class="log"><div class="panel"><h2>${t('logDone')}</h2><ul>${[1,2,3,4].map(i=>`<li>${t('logD'+i)}</li>`).join('')}</ul></div><div class="panel"><h2>${t('logBlocked')}</h2><ul>${[1,2,3,4].map(i=>`<li>${t('logB'+i)}</li>`).join('')}</ul></div></div></section>`;
+}
+
+function summaryView(){
+  const col=(h,cls,keys)=>`<div class="panel"><span class="st ${cls}">${t(h)}</span><ul class="src" style="margin-top:10px">${keys.map(k=>`<li style="color:var(--text)">${t(k)}</li>`).join('')}</ul></div>`;
+  return `<section class="wrap"><div class="grid3">${col('s_done','now',['done1','done2','done3'])}${col('s_rec','later',['rec1','rec2','rec3'])}${col('s_ver','verify',['ver1','ver2','ver3','ver4'])}</div><div class="notice">${t('gate')}</div><button data-view="data">${t('learn')} →</button></section>`;
+}
+
+function draw(){
+  document.documentElement.lang=lang;
+  document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));
+  $('#en').setAttribute('aria-pressed',lang==='en');$('#ja').setAttribute('aria-pressed',lang==='ja');
+  $('#en').classList.toggle('active',lang==='en');$('#ja').classList.toggle('active',lang==='ja');
+  $('#nav').innerHTML=['map','markets','data','summary'].map(v=>`<button class="${view===v?'active':''}" data-view="${v}" aria-pressed="${view===v}">${t(v)}</button>`).join('');
+  $('#help').textContent=t('help');
+  const H={map:['mapTitle','mapSub'],markets:['marketTitle','marketSub'],data:['dataTitle','dataSub'],summary:['summaryTitle','summarySub']}[view];
+  $('#heading').textContent=t(H[0]);$('#subheading').textContent=t(H[1]);
+  $('#legend').innerHTML=`<span class="txt">${t('legendLab')}</span>${['obs','est','fc','ill','nc'].map(k=>prov(k)).join('')}<span class="txt" style="flex-basis:100%">${t('legendNote')}</span>`;
+  $('#main').innerHTML=view==='map'?mapView():view==='markets'?marketsView():view==='data'?dataView():summaryView();
+  if(view==='map')updateMap();
+}
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-day],[data-site],button');if(!el)return;
+  if(el.id==='en'||el.id==='ja')lang=el.id;
+  else if(el.id==='guide'){$('#help').classList.toggle('hidden');return}
+  else if(el.dataset.view)view=el.dataset.view;
+  else if(el.dataset.site!==undefined)site=+el.dataset.site;
+  else if(el.dataset.day!==undefined)day=+el.dataset.day;
+  else if(el.dataset.dir)direction=el.dataset.dir;
+  else if(el.dataset.scope){if(scope!==el.dataset.scope){scope=el.dataset.scope;site=0;if(scope==='all')layers.delete('flow');else layers.add('flow')}}
+  else if(el.dataset.filter)filter=el.dataset.filter;
+  else if(el.dataset.base)basemap=el.dataset.base;
+  else return;
+  draw();
+});
+document.addEventListener('change',e=>{if(e.target.id==='placeSel'){site=+e.target.value;draw();return}if(e.target.dataset.layer){const l=e.target.dataset.layer;e.target.checked?layers.add(l):layers.delete(l);draw()}});
+draw();
+
+</script>
+</body>
+</html>
