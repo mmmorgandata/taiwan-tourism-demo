@@ -537,7 +537,7 @@ const gmaps=p=>`https://www.google.com/maps/search/${encodeURIComponent(p[1])}/@
 const TDX='https://tdx.transportdata.tw/api/basic';
 const LIVE={wx:null,vd:null,vdPos:null,vdTime:null,yb:null,alert:null,cal:null,status:{},at:{}};
 const LIVE_MS=5*60*1000;
-const getJSON=async u=>{const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()};
+const getJSON=async u=>{const c=new AbortController(),tm=setTimeout(()=>c.abort(),20000);try{const r=await fetch(u,{cache:'no-store',signal:c.signal});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json()}finally{clearTimeout(tm)}};
 const stamp=(k,ok,e)=>{LIVE.status[k]=ok?'ok':'err';if(ok)LIVE.at[k]=new Date();else console.warn('live source failed:',k,e&&e.message)};
 async function loadWeather(){
   const pts=[...PILOT,...ALL];
@@ -568,8 +568,8 @@ async function loadCal(){
 let liveTimer=null;
 async function refreshLive(first){
   const jobs={wx:loadWeather,vd:loadVD,yb:loadYB,alert:loadAlert};if(first)jobs.cal=loadCal;
-  await Promise.all(Object.entries(jobs).map(([k,f])=>f().then(()=>stamp(k,true)).catch(e=>stamp(k,false,e))));
-  if(view==='map'||view==='calendar')draw();
+  let rt=null;const redraw=()=>{clearTimeout(rt);rt=setTimeout(()=>{if(view==='map'||view==='calendar')draw()},150)};
+  await Promise.all(Object.entries(jobs).map(([k,f])=>f().then(()=>stamp(k,true)).catch(e=>stamp(k,false,e)).finally(redraw)));
 }
 function startLive(){if(liveTimer)return;refreshLive(true);liveTimer=setInterval(()=>refreshLive(false),LIVE_MS)}
 
